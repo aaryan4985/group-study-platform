@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, get_flashed_messages
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,47 +30,43 @@ def load_user(user_id):
 def home():
     return render_template('index.html')
 
-# Register route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
-        # Check if username already exists
+        # Check if the user already exists
         if User.query.filter_by(username=username).first():
-            flash('Username already exists!', 'danger')
+            flash('Username already exists. Please choose a different one.', 'danger')
             return redirect(url_for('register'))
 
-        # Create new user with hashed password
-        hashed_password = generate_password_hash(password, method='sha256')
+        # Create new user
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         new_user = User(username=username, password=hashed_password)
         db.session.add(new_user)
         db.session.commit()
-
-        flash('Account created successfully!', 'success')
+        flash('Account created successfully! You can now log in.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
 
-# Login route
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
-        # Check if user exists and verify password
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
-            login_user(user)  # Create session for the user
+            login_user(user)
+            flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
-
-        flash('Invalid username or password!', 'danger')
-        return redirect(url_for('login'))
+        else:
+            flash('Invalid username or password. Please try again.', 'danger')
 
     return render_template('login.html')
-
 # Dashboard route (only accessible to logged-in users)
 @app.route('/dashboard')
 @login_required
